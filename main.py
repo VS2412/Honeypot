@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import random
+import re
 
 app = FastAPI()
 
@@ -30,6 +31,18 @@ class HoneypotRequest(BaseModel):
 
 # ---------- Session Store ----------
 sessions = {}
+
+# ---------- Extraction Patterns ----------
+
+UPI_PATTERN = r"\b[\w.-]+@[\w.-]+\b"
+PHONE_PATTERN = r"\b(\+91[\s-]?)?\d{10}\b"
+URL_PATTERN = r"https?://[^\s]+"
+def extract_intelligence(text: str) -> dict:
+    return {
+        "upiIds": re.findall(UPI_PATTERN, text),
+        "phoneNumbers": re.findall(PHONE_PATTERN, text),
+        "phishingLinks": re.findall(URL_PATTERN, text)
+    }
 
 
 # ---------- Scam Heuristics ----------
@@ -92,10 +105,16 @@ def honeypot(
     # create session if new
     if sid not in sessions:
         sessions[sid] = {
-            "messages": [],
-            "scam_score": 0.0,
-            "confirmed": False
+        "messages": [],
+        "scam_score": 0.0,
+        "confirmed": False,
+        "intelligence": {
+        "upiIds": [],
+        "phoneNumbers": [],
+        "phishingLinks": [],
+        "suspiciousKeywords": []
         }
+    }
 
     # store incoming message
     sessions[sid]["messages"].append({
@@ -114,13 +133,31 @@ def honeypot(
     # confirm scam if threshold crossed
     if sessions[sid]["scam_score"] >= 0.7:
         sessions[sid]["confirmed"] = True
-
     reply_text = generate_reply(sessions[sid]["confirmed"])
 
+    intel = extract_intelligence(payload.message.text)
+
+    for key in ["upiIds", "phoneNumbers", "phishingLinks"]:
+        sessions[sid]["intelligence"][key].extend(
+            x for x in intel[key]
+            if x not in sessions[sid]["intelligence"][key]
+    )
+
+    # track suspicious keywords
+    for kw in SCAM_KEYWORDS:
+        if kw in payload.message.text.lower():
+            if kw not in sessions[sid]["intelligence"]["suspiciousKeywords"]:
+                sessions[sid]["intelligence"]["suspiciousKeywords"].append(kw)
+
+    print("INTELLIGENCE:", sessions[sid]["intelligence"])
     return {
         "status": "success",
         "reply": reply_text
     }
+@app.get("/debug/session/{session_id}")
+def debug_session(session_id: str):
+    return sessions.get(session_id, {})
+
 
     # return {
     #     "status": "success",

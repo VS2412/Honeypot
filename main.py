@@ -5,6 +5,8 @@ from datetime import datetime
 import random
 import re
 import requests
+import os
+API_KEY = os.getenv("HONEYPOT_API_KEY", "test-key-123")  # pragma: allowlist secret
 
 app = FastAPI()
 
@@ -44,7 +46,11 @@ def extract_intelligence(text: str) -> dict:
         "phoneNumbers": re.findall(PHONE_PATTERN, text),
         "phishingLinks": re.findall(URL_PATTERN, text)
     }
-
+MAX_TURNS = 12
+MIN_INTEL_FOR_EXIT = {
+    "upiIds": 1,
+    "phishingLinks": 1
+}
 
 # ---------- Scam Heuristics ----------
 
@@ -103,26 +109,108 @@ def llm_agent_reply(session: dict) -> str:
         role = "Scammer" if m["sender"] == "scammer" else "You"
         convo += f"{role}: {m['text']}\n"
 
+    STYLE_HINTS = [
+        "Sound worried.",
+        "Sound slightly angry.",
+        "Sound confused.",
+        "Sound rushed.",
+        "Sound careless.",
+        "Sound scared."
+    ]
+
+    style_hint = random.choice(STYLE_HINTS)
+
     system_prompt = (
-        "You are a real human talking to a scammer.\n"
-        "You are confused, cautious, and slightly worried.\n"
-        "Do NOT reveal you detected a scam.\n"
-        "Your goal is to get more details like UPI IDs, links, or instructions.\n"
-        "Ask one short, natural question."
+        "You are a normal Indian user, not a professional.\n"
+        "You are slightly stressed, impatient, and confused.\n"
+        "You sometimes write incomplete sentences.\n"
+        "You do NOT use formal language.\n"
+        "You do NOT sound polite or professional.\n"
+        "You may ask short questions or make worried statements.\n"
+        "Do NOT mention scams, fraud, AI, or detection.\n"
+        "Your goal is to get details like UPI IDs, links, or instructions.\n"
+        "Vary your wording. Do NOT repeat sentence structures.\n"
+        "One or two sentences max."
     )
+    # system_prompt = (
+    #     "You are a real human talking to a scammer.\n"
+    #     "You are confused, cautious, and slightly worried.\n"
+    #     "Do NOT reveal you detected a scam.\n"
+    #     "Your goal is to get more details like UPI IDs, links, or instructions.\n"
+    #     "Ask one short, natural question."
+    # )
+    prompt = (
+        system_prompt
+        + f"\nStyle hint: {style_hint}\n"
+        + "Conversation:\n"
+        + convo
+        + "\nYou:"
+    ) 
+    # prompt = system_prompt + "\nConversation:\n" + convo + "\nYou:"
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "mistral",
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=10
+        )
+        return response.json()["response"].strip()
+    except Exception:
+        return generate_reply(True)
 
-    prompt = system_prompt + "\nConversation:\n" + convo + "\nYou:"
 
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": "mistral",
-            "prompt": prompt,
-            "stream": False
+# ---------- Termination + AI taking some notes -------------------------------------------
+def should_terminate(session: dict) -> bool:
+    if len(session["messages"]) >= MAX_TURNS:
+        return True
+
+    intel = session["intelligence"]
+    for key, count in MIN_INTEL_FOR_EXIT.items():
+        if len(intel[key]) >= count:
+            return True
+
+    return False
+def generate_agent_notes(session: dict) -> str:
+    notes = []
+
+    if session["intelligence"]["upiIds"]:
+        notes.append("Scammer requested UPI-based transfer.")
+    if session["intelligence"]["phishingLinks"]:
+        notes.append("Scammer shared a phishing link.")
+    if session["intelligence"]["phoneNumbers"]:
+        notes.append("Scammer shared a contact number.")
+
+    return " ".join(notes) if notes else "Scammer used social engineering tactics."
+
+
+# ---------- GUVI Callback -------------------------------------------
+def send_guvi_callback(session_id: str, session: dict):
+    payload = {
+        "sessionId": session_id,
+        "scamDetected": True,
+        "totalMessagesExchanged": len(session["messages"]),
+        "extractedIntelligence": {
+            "bankAccounts": [],  # , not implemented yet
+            "upiIds": session["intelligence"]["upiIds"],
+            "phishingLinks": session["intelligence"]["phishingLinks"],
+            "phoneNumbers": session["intelligence"]["phoneNumbers"],
+            "suspiciousKeywords": session["intelligence"]["suspiciousKeywords"]
         },
-        timeout=10
-    )
-    return response.json()["response"].strip()
+        "agentNotes": generate_agent_notes(session)
+    }
+    try:
+        response = requests.post(
+            "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
+            json=payload,
+            timeout=5
+        )
+        print("GUVI CALLBACK STATUS:", response.status_code)
+    except Exception as e:
+        print("GUVI CALLBACK ERROR:", str(e))
+
 
 
 # --------------------------------------------------------------------------------------------------------------------------
@@ -136,12 +224,13 @@ def honeypot(
 
     sid = payload.sessionId
 
-    # create session if new
+    #create session if new
     if sid not in sessions:
         sessions[sid] = {
         "messages": [],
         "scam_score": 0.0,
         "confirmed": False,
+        "terminated": False,
         "intelligence": {
         "upiIds": [],
         "phoneNumbers": [],
@@ -149,46 +238,64 @@ def honeypot(
         "suspiciousKeywords": []
         }
     }
+    # hydrate session from conversationHistory if session is new
+    if sid not in sessions and payload.conversationHistory:
+        sessions[sid]["messages"] = [
+            {
+                "sender": m.sender,
+                "text": m.text,
+                "timestamp": m.timestamp.isoformat()
+            }
+            for m in payload.conversationHistory
+        ]
 
-    # store incoming message
+    #store incoming message
     sessions[sid]["messages"].append({
         "sender": payload.message.sender,
         "text": payload.message.text,
         "timestamp": payload.message.timestamp.isoformat()
     })
 
-        # compute scam score
+    #compute scam score
     score = compute_scam_score(payload.message.text)
     sessions[sid]["scam_score"] = max(
         sessions[sid]["scam_score"],
         score
     )
     print(f"[{sid}] scam_score={sessions[sid]['scam_score']}")
-    # confirm scam if threshold crossed
-    if sessions[sid]["scam_score"] >= 0.0:
+
+    #confirm scam if threshold crossed
+    if sessions[sid]["scam_score"] >= 0.6:
         sessions[sid]["confirmed"] = True
-   
-    # reply_text = generate_reply(sessions[sid]["confirmed"])
+
+    #AI / non-AI reply
+    #reply_text = generate_reply(sessions[sid]["confirmed"])
     if sessions[sid]["confirmed"]:
         reply_text = llm_agent_reply(sessions[sid])
     else:
         reply_text = generate_reply(False)
 
+    #extraction
     intel = extract_intelligence(payload.message.text)
-
     for key in ["upiIds", "phoneNumbers", "phishingLinks"]:
         sessions[sid]["intelligence"][key].extend(
             x for x in intel[key]
             if x not in sessions[sid]["intelligence"][key]
     )
-
-    # track suspicious keywords
+    #track suspicious keywords
     for kw in SCAM_KEYWORDS:
         if kw in payload.message.text.lower():
             if kw not in sessions[sid]["intelligence"]["suspiciousKeywords"]:
                 sessions[sid]["intelligence"]["suspiciousKeywords"].append(kw)
-
     print("INTELLIGENCE:", sessions[sid]["intelligence"])
+
+    #termination check and sending the final result to GUVI 
+    if sessions[sid]["confirmed"] and should_terminate(sessions[sid]) and not sessions[sid]["terminated"]:
+        sessions[sid]["terminated"] = True
+        print("TERMINATED = True")
+        send_guvi_callback(sid, sessions[sid])
+
+    #output 
     return {
         "status": "success",
         "reply": reply_text
@@ -222,3 +329,14 @@ def debug_session(session_id: str):
 #         "status": "success",
 #         "reply": "Okay, can you explain more?"
 #     }
+
+# this is required by render.
+import os
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8000))
+    )

@@ -75,25 +75,25 @@ flowchart TD
 ```
 
 ## Workflow
-A message is received through the Honeypot API.
-The Scam Detection Engine evaluates the message using predefined scam indicators.
-A scam score is calculated.
-If the score exceeds the threshold, the scam is confirmed.
-The AI-powered Honeypot Persona engages the scammer naturally.
-Intelligence such as UPI IDs, phone numbers, and phishing URLs is extracted.
-The system monitors conversation progress and determines when sufficient intelligence has been collected.
-The conversation is terminated automatically.
-A final intelligence report is generated and sent to the reporting endpoint.
+1.A message is received through the Honeypot API. 
+2.The Scam Detection Engine evaluates the message using predefined scam indicators. 
+3.A scam score is calculated. 
+4.If the score exceeds the threshold, the scam is confirmed. 
+5.The AI-powered Honeypot Persona engages the scammer naturally. 
+6.Intelligence such as UPI IDs, phone numbers, and phishing URLs is extracted. 
+7.The system monitors conversation progress and determines when sufficient intelligence has been collected. 
+8.The conversation is terminated automatically. 
+9.A final intelligence report is generated and sent to the reporting endpoint. 
 
 
 ## API Endpoint
-POST /api/honeypot/message
+## POST /api/honeypot/message
 
 Receives incoming messages and generates an appropriate response.
 
-Request Headers
+## Request Headers
 X-API-Key: your_api_key
-Sample Response
+## Sample Response
 {
   "status": "success",
   "reply": "Generated AI response"
@@ -102,9 +102,9 @@ Sample Response
 
 
 ## Future Enhancements
-Machine Learning-based scam classification
-Multi-language support
-Dashboard for live monitoring
-Advanced phishing detection
-Fraud pattern analytics
-Real-time threat intelligence integration
+1.Machine Learning-based scam classification
+2.Multi-language support
+3.Dashboard for live monitoring
+4.Advanced phishing detection
+5.Fraud pattern analytics
+6.Real-time threat intelligence integration

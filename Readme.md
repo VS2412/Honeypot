@@ -1,33 +1,51 @@
 ## Honeypot – AI-Powered Scam Detection & Intelligence Gathering System
 Overview
 
-Honeypot is an AI-driven cybersecurity solution designed to identify, engage, and analyze scam conversations in real time. The system acts as a simulated victim, interacts with suspected scammers using an AI-powered persona, collects actionable intelligence such as UPI IDs, phone numbers, and phishing links, and generates structured reports for security analysis.
+Honeypot is an AI-driven cybersecurity solution designed to identify, engage, and analyze scam conversations in real time. 
 
-Key Features
+The system acts as a simulated victim, interacts with suspected scammers using an AI-powered persona, collects actionable intelligence such as UPI IDs, phone numbers, and phishing links, and generates structured reports for security analysis.
+
+## Key Features
 Real-time scam intent detection
+
 AI-powered conversational engagement using Mistral LLM
+
 Extraction of UPI IDs, phone numbers, and phishing links
+
 Session-based conversation tracking
+
 Automated scam confirmation through scoring mechanisms
-Intelligent conversation termination
-Automated incident reporting
-RESTful API architecture using FastAPI
-Tech Stack
-Backend
+
+## Tech Stack
+## Backend
 Python
+
 FastAPI
+
 Pydantic
+
 Uvicorn
+
 AI & NLP
+
 Mistral LLM
+
 Ollama
+
 Security & Intelligence Extraction
+
 Regular Expressions (Regex)
+
 Scam Intent Scoring Engine
+
 APIs & Integration
+
 REST APIs
+
 Callback Reporting System
+
 Deployment
+
 Render
 
 ## System Architecture
@@ -75,15 +93,23 @@ flowchart TD
 ```
 
 ## Workflow
-1.A message is received through the Honeypot API. 
-2.The Scam Detection Engine evaluates the message using predefined scam indicators. 
-3.A scam score is calculated. 
-4.If the score exceeds the threshold, the scam is confirmed. 
-5.The AI-powered Honeypot Persona engages the scammer naturally. 
-6.Intelligence such as UPI IDs, phone numbers, and phishing URLs is extracted. 
-7.The system monitors conversation progress and determines when sufficient intelligence has been collected. 
-8.The conversation is terminated automatically. 
-9.A final intelligence report is generated and sent to the reporting endpoint. 
+A message is received through the Honeypot API. 
+
+The Scam Detection Engine evaluates the message using predefined scam indicators. 
+
+A scam score is calculated. 
+
+If the score exceeds the threshold, the scam is confirmed. 
+
+The AI-powered Honeypot Persona engages the scammer naturally. 
+
+Intelligence such as UPI IDs, phone numbers, and phishing URLs is extracted. 
+
+The system monitors conversation progress and determines when sufficient intelligence has been collected. 
+
+The conversation is terminated automatically. 
+
+A final intelligence report is generated and sent to the reporting endpoint. 
 
 
 ## API Endpoint
@@ -102,9 +128,14 @@ X-API-Key: your_api_key
 
 
 ## Future Enhancements
-1.Machine Learning-based scam classification
-2.Multi-language support
-3.Dashboard for live monitoring
-4.Advanced phishing detection
-5.Fraud pattern analytics
-6.Real-time threat intelligence integration
+Machine Learning-based scam classification
+
+Multi-language support
+
+Dashboard for live monitoring
+
+Advanced phishing detection
+
+Fraud pattern analytics
+
+Real-time threat intelligence integration

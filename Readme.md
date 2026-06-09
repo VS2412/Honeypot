@@ -17,7 +17,7 @@ Session-based conversation tracking
 Automated scam confirmation through scoring mechanisms
 
 ## Tech Stack
-## Backend
+### Backend
 Python
 
 FastAPI
@@ -113,13 +113,13 @@ A final intelligence report is generated and sent to the reporting endpoint.
 
 
 ## API Endpoint
-## POST /api/honeypot/message
+### POST /api/honeypot/message
 
 Receives incoming messages and generates an appropriate response.
 
-## Request Headers
+### Request Headers
 X-API-Key: your_api_key
-## Sample Response
+### Sample Response
 {
   "status": "success",
   "reply": "Generated AI response"

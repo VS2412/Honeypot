@@ -1,4 +1,4 @@
-Honeypot – AI-Powered Scam Detection & Intelligence Gathering System
+## Honeypot – AI-Powered Scam Detection & Intelligence Gathering System
 Overview
 
 Honeypot is an AI-driven cybersecurity solution designed to identify, engage, and analyze scam conversations in real time. The system acts as a simulated victim, interacts with suspected scammers using an AI-powered persona, collects actionable intelligence such as UPI IDs, phone numbers, and phishing links, and generates structured reports for security analysis.

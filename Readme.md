@@ -74,7 +74,7 @@ flowchart TD
     Report --> Callback
 ```
 
-##Workflow
+## Workflow
 A message is received through the Honeypot API.
 The Scam Detection Engine evaluates the message using predefined scam indicators.
 A scam score is calculated.
@@ -86,7 +86,7 @@ The conversation is terminated automatically.
 A final intelligence report is generated and sent to the reporting endpoint.
 
 
-##API Endpoint
+## API Endpoint
 POST /api/honeypot/message
 
 Receives incoming messages and generates an appropriate response.
@@ -101,7 +101,7 @@ Sample Response
 
 
 
-##Future Enhancements
+## Future Enhancements
 Machine Learning-based scam classification
 Multi-language support
 Dashboard for live monitoring
